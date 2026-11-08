@@ -1,0 +1,12 @@
+{
+  "name": "tabby",
+  "private": true,
+  "packageManager": "pnpm@12.4.1",
+  "scripts": {
+    "test": "pnpm -r --if-present test",
+    "test:core": "pnpm --filter @tabby/core test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "web": "pnpm --filter @tabby/web dev",
+    "mobile": "pnpm --filter @tabby/mobile start"
+  }
+}
