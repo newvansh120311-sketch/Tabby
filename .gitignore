@@ -1,0 +1,8 @@
+secrets/
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+credentials.json
+node_modules/
