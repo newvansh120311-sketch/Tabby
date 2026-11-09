@@ -1,0 +1,256 @@
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------- Auth.js ----------
+
+model User {
+  id              String    @id @default(cuid())
+  name            String?
+  email           String?   @unique
+  emailVerified   DateTime?
+  image           String?
+  displayName     String?
+  defaultCurrency String    @default("INR")
+  upiId           String?
+  isDemo          Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  accounts        Account[]
+  sessions        Session[]
+  devices         Device[]
+  trips           Trip[]
+}
+
+model Account {
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([provider, providerAccountId])
+}
+
+model Session {
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@id([identifier, token])
+}
+
+// ---------- Tabby ----------
+
+/// A phone or browser. tokenHash is sha256 of the random token the client keeps.
+model Device {
+  tokenHash       String   @id
+  userId          String?
+  displayName     String?
+  defaultCurrency String   @default("INR")
+  upiId           String?
+  createdAt       DateTime @default(now())
+  lastSeenAt      DateTime @default(now())
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model Trip {
+  id              String       @id @default(cuid())
+  slug            String       @unique
+  name            String
+  baseCurrency    String
+  ownerId         String?
+  ownerDeviceHash String?
+  settledAt       DateTime?
+  isDemo          Boolean      @default(false)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  owner           User?        @relation(fields: [ownerId], references: [id], onDelete: SetNull)
+  members         TripMember[]
+  bills           Bill[]
+  settlements     Settlement[]
+}
+
+model TripMember {
+  id              String        @id @default(cuid())
+  tripId          String
+  userId          String?
+  name            String
+  deviceTokenHash String?
+  upiId           String?
+  isOwner         Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  trip            Trip          @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  participants    Participant[]
+  paidBills       Bill[]        @relation("BillPayer")
+
+  @@index([tripId])
+  @@index([deviceTokenHash])
+}
+
+enum BillSource {
+  receipt
+  swiggy
+  zomato
+  instamart
+  zepto
+  blinkit
+  district
+  eazydiner
+  email
+  manual
+}
+
+enum SplitMode {
+  items
+  even
+}
+
+model Bill {
+  id                 String        @id @default(cuid())
+  slug               String        @unique
+  title              String
+  merchant           String?
+  tripId             String?
+  payerMemberId      String?
+  source             BillSource    @default(manual)
+  currency           String
+  fxRateToBase       Float         @default(1)
+  splitMode          SplitMode     @default(items)
+  feeRules           Json          @default("{}")
+  date               DateTime      @default(now())
+  detectedTotalMinor Int?
+  ownerId            String?
+  ownerDeviceHash    String?
+  hostName           String?
+  hostUpiId          String?
+  isDemo             Boolean       @default(false)
+  version            Int           @default(1)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  trip               Trip?         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  payer              TripMember?   @relation("BillPayer", fields: [payerMemberId], references: [id], onDelete: SetNull)
+  items              Item[]
+  charges            Charge[]
+  participants       Participant[]
+  settlements        Settlement[]
+
+  @@index([tripId])
+  @@index([ownerId])
+  @@index([ownerDeviceHash])
+}
+
+enum ChargeType {
+  tax
+  tip
+  partner_tip
+  delivery
+  platform
+  packaging
+  discount
+  coupon
+  membership
+  other
+}
+
+model Charge {
+  id          String     @id @default(cuid())
+  billId      String
+  type        ChargeType
+  label       String
+  /// Negative for discounts, coupons and membership savings.
+  amountMinor Int
+  position    Int        @default(0)
+  bill        Bill       @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([billId])
+}
+
+model Item {
+  id          String  @id @default(cuid())
+  billId      String
+  name        String
+  /// Line total (unit price x qty) in minor units.
+  amountMinor Int
+  qty         Int     @default(1)
+  position    Int     @default(0)
+  bill        Bill    @relation(fields: [billId], references: [id], onDelete: Cascade)
+  claims      Claim[]
+
+  @@index([billId])
+}
+
+model Participant {
+  id              String      @id @default(cuid())
+  billId          String
+  memberId        String?
+  name            String
+  deviceTokenHash String?
+  isHost          Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+  bill            Bill        @relation(fields: [billId], references: [id], onDelete: Cascade)
+  member          TripMember? @relation(fields: [memberId], references: [id], onDelete: SetNull)
+  claims          Claim[]
+
+  @@index([billId])
+  @@index([deviceTokenHash])
+}
+
+model Claim {
+  itemId        String
+  participantId String
+  createdAt     DateTime    @default(now())
+  item          Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, participantId])
+}
+
+enum SettlementStatus {
+  unpaid
+  marked
+  confirmed
+}
+
+/// A payment between two people. For a bill, from/to are participant ids; for a trip, member ids.
+model Settlement {
+  id          String           @id @default(cuid())
+  tripId      String?
+  billId      String?
+  fromId      String
+  toId        String
+  amountMinor Int
+  currency    String
+  status      SettlementStatus @default(unpaid)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  trip        Trip?            @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  bill        Bill?            @relation(fields: [billId], references: [id], onDelete: Cascade)
+
+  @@index([tripId])
+  @@index([billId])
+}

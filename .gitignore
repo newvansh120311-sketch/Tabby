@@ -6,3 +6,4 @@ secrets/
 *.keystore
 credentials.json
 node_modules/
+.pnpm-store/

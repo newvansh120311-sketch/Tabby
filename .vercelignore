@@ -1,0 +1,10 @@
+secrets/
+**/node_modules
+**/.next
+.env
+.env.*
+*.jks
+*.keystore
+apps/mobile/android
+apps/mobile/ios
+.pnpm-store/
