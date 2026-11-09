@@ -1,0 +1,14 @@
+appId: app.tabby.split
+name: Share a Swiggy order text into Tabby
+# Run with: adb shell am start -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "$(cat fixtures/swiggy.txt)" -n app.tabby.split/.MainActivity
+---
+- extendedWaitUntil:
+    visible: "Swiggy order"
+    timeout: 20000
+- assertVisible: "Found 6 items.*"
+- tapOn: "Check the bill"
+- assertVisible: "Chicken Dum Biryani"
+- assertNotVisible: "This doesn’t add up yet"
+- scrollUntilVisible:
+    element: "Delivery partner tip"
+    direction: DOWN

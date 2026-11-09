@@ -1,0 +1,27 @@
+name: OTA update
+
+# Ship a JavaScript-only fix to installed apps without a new APK.
+on:
+  workflow_dispatch:
+    inputs:
+      message:
+        description: What changed
+        required: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx -y eas-cli@latest update --channel production --environment production --message "${{ github.event.inputs.message }}" --non-interactive

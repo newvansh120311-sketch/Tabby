@@ -1,0 +1,20 @@
+appId: app.tabby.split
+name: Onboarding and demo trip
+---
+- launchApp:
+    clearState: true
+- assertVisible: "Whoever paid scans the bill"
+- tapOn: "Next"
+- assertVisible: "Ordered on Swiggy or Zomato?"
+- tapOn: "Next"
+- assertVisible: "Friends tap what they had"
+- tapOn: "Try a demo trip"
+- extendedWaitUntil:
+    visible: "Goa, Dec 2026"
+    timeout: 20000
+- assertVisible: "Demo data"
+- assertVisible: "Settle up"
+- tapOn: "Timeline.*"
+- assertVisible: "Zomato biryani run"
+- tapOn: "Balances"
+- assertVisible: "Net is what the others owe.*"

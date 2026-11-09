@@ -1,0 +1,14 @@
+appId: app.tabby.split
+name: Settings validate the UPI ID
+---
+- launchApp
+- tapOn: "Settings"
+- tapOn: "yourname@okaxis"
+- inputText: "not a upi id"
+- assertVisible: "That doesn’t look like a UPI ID.*"
+- eraseText: 20
+- inputText: "tester@okaxis"
+- assertNotVisible: "That doesn’t look like a UPI ID.*"
+- hideKeyboard
+- tapOn: "Save settings"
+- assertVisible: "Saved"

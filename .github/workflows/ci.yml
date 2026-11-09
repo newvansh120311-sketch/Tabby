@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - name: Core tests (split engine, fee rules, debts, UPI, parsers)
+        run: pnpm --filter @tabby/core test -- --ci
+      - name: Typecheck core and web
+        run: |
+          pnpm --filter @tabby/core typecheck
+          pnpm --filter @tabby/web exec prisma generate
+          pnpm --filter @tabby/web typecheck
+      - name: Typecheck mobile
+        run: pnpm --filter @tabby/mobile typecheck
+
+  e2e-web:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm --filter @tabby/web exec playwright install --with-deps chromium
+      - name: Playwright against production
+        env:
+          BASE_URL: https://tabby-split-amber.vercel.app
+        run: pnpm --filter @tabby/web test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report

@@ -6,3 +6,4 @@ export * from './trip';
 export * from './upi';
 export * from './schemas';
 export * from './parsers';
+export * from './ocr';

@@ -1,0 +1,34 @@
+appId: app.tabby.split
+name: Type a bill in, share it, claim
+---
+- launchApp
+- tapOn: "New bill"
+- tapOn: "Type it in"
+- tapOn:
+    id: "Name"
+    optional: true
+- tapOn: "Friday dinner"
+- inputText: "Maestro chai"
+- tapOn: "Item 1"
+- inputText: "Masala chai"
+- tapOn: "Item 1 price for the whole line"
+- inputText: "80"
+- tapOn: "Add an item"
+- tapOn: "Item 2"
+- inputText: "Samosa"
+- tapOn: "Item 2 price for the whole line"
+- inputText: "50"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Save and share"
+    direction: DOWN
+- tapOn: "Save and share"
+- extendedWaitUntil:
+    visible: "Send this to everyone"
+    timeout: 20000
+- assertVisible: "Share link"
+- tapOn: "Show QR code"
+- assertVisible: "Scan with a phone camera.*"
+- tapOn: "Done"
+- tapOn: "Masala chai, .*"
+- assertVisible: "You"

@@ -1,0 +1,111 @@
+name: Release APK
+
+# Push a tag like v1.0.1 to build a signed APK in the cloud and publish it.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  eas:
+    runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.build.outcome == 'success' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - name: Write signing credentials (never committed)
+        working-directory: apps/mobile
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$KS" | base64 -d > tabby-release.jks
+          printf '{"android":{"keystore":{"keystorePath":"tabby-release.jks","keystorePassword":"%s","keyAlias":"tabby","keyPassword":"%s"}}}' "$KS_PASS" "$KEY_PASS" > credentials.json
+      - name: Build on EAS
+        id: build
+        continue-on-error: true
+        working-directory: apps/mobile
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx -y eas-cli@latest build --platform android --profile production --non-interactive --wait --json > build.json
+          URL=$(node -e "const b=require('./build.json');console.log((Array.isArray(b)?b[0]:b).artifacts.buildUrl)")
+          curl -fsSL "$URL" -o ../../tabby.apk
+      - uses: actions/upload-artifact@v4
+        if: steps.build.outcome == 'success'
+        with:
+          name: apk
+          path: tabby.apk
+
+  gradle-fallback:
+    needs: eas
+    if: needs.eas.outputs.ok != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.4.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: pnpm install --no-frozen-lockfile
+      - name: Prebuild and assemble release
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_API_URL: https://tabby-split-amber.vercel.app
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: ${{ secrets.GOOGLE_WEB_CLIENT_ID }}
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          npx expo prebuild --platform android --no-install
+          echo "$KS" | base64 -d > android/app/tabby-release.jks
+          cat >> android/gradle.properties <<PROPS
+          TABBY_STORE_FILE=tabby-release.jks
+          TABBY_STORE_PASSWORD=$KS_PASS
+          TABBY_KEY_ALIAS=tabby
+          TABBY_KEY_PASSWORD=$KEY_PASS
+          PROPS
+          node ../../scripts/patch-signing.js android/app/build.gradle
+          cd android && ./gradlew assembleRelease --no-daemon
+          cp app/build/outputs/apk/release/app-release.apk ../../../tabby.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          path: tabby.apk
+
+  publish:
+    needs: [eas, gradle-fallback]
+    if: always() && (needs.eas.outputs.ok == 'true' || needs.gradle-fallback.result == 'success')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: apk
+      - name: Name the APK after the tag
+        run: mv tabby.apk "tabby-${GITHUB_REF_NAME}.apk"
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: tabby-*.apk
+          make_latest: true
+          body: |
+            Install on Android 10 or newer: download the APK on your phone, open it, and allow installs from your browser when asked.
+            Download page: https://tabby-split-amber.vercel.app/download
