@@ -105,7 +105,7 @@ export default function BillClaim({ initial }: { initial: BillView }) {
         <p className="mt-1 text-sm text-muted">
           {bill.payee.name} paid {money(bill.totals.totalMinor)}
           {bill.merchant && bill.merchant !== bill.title ? ` at ${bill.merchant}` : ''} on{' '}
-          {new Date(bill.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}.
+          {new Date(bill.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })}.
         </p>
       </div>
 

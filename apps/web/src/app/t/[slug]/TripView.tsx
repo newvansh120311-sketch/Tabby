@@ -246,7 +246,7 @@ export default function TripView({ initial }: { initial: Trip }) {
                   <span className="min-w-0">
                     <span className="block truncate font-medium">{b.title}</span>
                     <span className="block truncate text-xs text-muted">
-                      {new Date(b.date).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
+                      {new Date(b.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', weekday: 'short', day: 'numeric', month: 'short' })} ·{' '}
                       {b.payerName} paid · {b.sourceLabel}
                     </span>
                   </span>
