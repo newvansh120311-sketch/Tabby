@@ -1,5 +1,6 @@
 'use client';
 
+import { formatDate } from '@/lib/dates';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { CHARGE_LABELS, ChargeType, formatMoney } from '@tabby/core';
 import type { BillView } from '@/lib/bills';
@@ -105,7 +106,7 @@ export default function BillClaim({ initial }: { initial: BillView }) {
         <p className="mt-1 text-sm text-muted">
           {bill.payee.name} paid {money(bill.totals.totalMinor)}
           {bill.merchant && bill.merchant !== bill.title ? ` at ${bill.merchant}` : ''} on{' '}
-          {new Date(bill.date).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric' })}.
+          {formatDate(bill.date, { year: true })}.
         </p>
       </div>
 
