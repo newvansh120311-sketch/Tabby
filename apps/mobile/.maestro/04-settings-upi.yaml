@@ -1,9 +1,15 @@
 appId: app.tabby.split
-name: Settings validate the UPI ID
+name: Settings validate the UPI ID and save
 ---
 - launchApp
 - tapOn: "Settings"
-- tapOn: "yourname@okaxis"
+- tapOn:
+    id: "settings-name"
+- eraseText: 30
+- inputText: "Maestro"
+- tapOn:
+    id: "settings-upi"
+- eraseText: 40
 - inputText: "not a upi id"
 - assertVisible: "That doesn’t look like a UPI ID.*"
 - eraseText: 20

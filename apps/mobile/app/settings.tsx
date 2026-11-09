@@ -93,7 +93,7 @@ export default function Settings() {
       </Card>
 
       <Card className="gap-3">
-        <Input label="Your name" value={displayName} onChangeText={setDisplayName} placeholder="What friends call you" error={displayName ? nameError : null} maxLength={60} />
+        <Input testID="settings-name" label="Your name" value={displayName} onChangeText={setDisplayName} placeholder="What friends call you" error={displayName ? nameError : null} maxLength={60} />
         <View className="gap-1">
           <Text variant="muted">Default currency for new bills</Text>
           <Pressable
@@ -112,6 +112,7 @@ export default function Settings() {
         </View>
         <Input
           label="Your UPI ID"
+          testID="settings-upi"
           value={upi}
           onChangeText={setUpi}
           placeholder="yourname@okaxis"

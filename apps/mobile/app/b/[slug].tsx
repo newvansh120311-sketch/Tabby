@@ -110,7 +110,13 @@ export default function BillScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: b.title }} />
+      <Stack.Screen
+        options={{
+          title: b.title,
+          // Opened from a link there's nothing to go back to, so offer a way home instead.
+          headerLeft: router.canGoBack() ? undefined : () => <Button variant="ghost" title="Home" onPress={() => router.replace('/')} />,
+        }}
+      />
       <Screen onRefresh={() => bill.refetch()} refreshing={bill.isRefetching}>
         <Row className="flex-wrap gap-2">
           <Badge tone="brand" label={b.sourceLabel} />
@@ -137,7 +143,7 @@ export default function BillScreen() {
         {!mine && !b.isHost && !b.pending ? (
           <Card className="gap-3">
             <Text variant="h2">Join to claim your items</Text>
-            <Input label="Your name" value={name} onChangeText={setName} placeholder="Your name" maxLength={60} />
+            <Input testID="join-name" label="Your name" value={name} onChangeText={setName} placeholder="Your name" maxLength={60} />
             <Button title="Start claiming" loading={join.isPending} onPress={() => name.trim() && join.mutate({ name: name.trim(), deviceToken: deviceToken() })} />
             {openSeats.length ? (
               <>

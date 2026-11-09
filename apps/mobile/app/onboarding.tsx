@@ -63,7 +63,7 @@ export default function Onboarding() {
           {!last ? <Button variant="ghost" title="Skip" onPress={finish} /> : <View className="h-12" />}
         </View>
         <View className="items-center gap-4">
-          <Text style={{ fontSize: Math.min(96, width * 0.22) }} accessibilityElementsHidden importantForAccessibility="no">
+          <Text style={{ fontSize: Math.min(88, width * 0.2), lineHeight: Math.min(88, width * 0.2) * 1.3 }} accessibilityElementsHidden importantForAccessibility="no">
             {page.art}
           </Text>
           <Text variant="title" className="text-center">

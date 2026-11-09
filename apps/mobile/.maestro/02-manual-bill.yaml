@@ -5,24 +5,26 @@ name: Type a bill in, share it, claim
 - tapOn: "New bill"
 - tapOn: "Type it in"
 - tapOn:
-    id: "Name"
-    optional: true
-- tapOn: "Friday dinner"
+    id: "bill-title"
 - inputText: "Maestro chai"
-- tapOn: "Item 1"
+- tapOn:
+    id: "item-name-0"
 - inputText: "Masala chai"
-- tapOn: "Item 1 price for the whole line"
+- tapOn:
+    id: "item-price-0"
 - inputText: "80"
+- hideKeyboard
 - tapOn: "Add an item"
-- tapOn: "Item 2"
+- tapOn:
+    id: "item-name-1"
 - inputText: "Samosa"
-- tapOn: "Item 2 price for the whole line"
+- tapOn:
+    id: "item-price-1"
 - inputText: "50"
 - hideKeyboard
-- scrollUntilVisible:
-    element: "Save and share"
-    direction: DOWN
-- tapOn: "Save and share"
+- assertVisible: "₹130.00"
+- tapOn:
+    id: "save-bill"
 - extendedWaitUntil:
     visible: "Send this to everyone"
     timeout: 20000

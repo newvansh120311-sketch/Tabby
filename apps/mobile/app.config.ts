@@ -79,7 +79,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
       },
     ],
     '@react-native-google-signin/google-signin',
-    ['expo-build-properties', { android: { minSdkVersion: 29, targetSdkVersion: 36 } }],
+    ['expo-build-properties', { android: { minSdkVersion: 29, targetSdkVersion: 36, buildArchs: ['armeabi-v7a', 'arm64-v8a', 'x86_64'] } }],
     ['./plugins/withPackageQueries', { packages: PLATFORM_PACKAGES, schemes: ['upi'] }],
   ],
   experiments: { typedRoutes: false },

@@ -155,7 +155,7 @@ export default function Review() {
               {money(computed.check.computedMinor)}
             </Text>
           </Row>
-          <Button title={d.editingSlug ? 'Save changes' : 'Save and share'} loading={saving} onPress={save} />
+          <Button testID="save-bill" title={d.editingSlug ? 'Save changes' : 'Save and share'} loading={saving} onPress={save} />
         </View>
       }
     >
@@ -188,6 +188,7 @@ export default function Review() {
       <Card className="gap-3">
         <Input
           label="Name"
+          testID="bill-title"
           value={d.title}
           onChangeText={(t) => set((x) => ({ ...x, title: t }))}
           placeholder="Friday dinner"
@@ -253,6 +254,7 @@ export default function Review() {
               value={it.name}
               onChangeText={(t) => set((x) => ({ ...x, items: x.items.map((i) => (i.key === it.key ? { ...i, name: t } : i)) }))}
               placeholder={`Item ${idx + 1}`}
+              testID={`item-name-${idx}`}
               accessibilityLabel={`Item ${idx + 1} name`}
               error={errors[`name-${it.key}`]}
             />
@@ -273,6 +275,7 @@ export default function Review() {
                   onChangeText={(t) => set((x) => ({ ...x, items: x.items.map((i) => (i.key === it.key ? { ...i, amount: t } : i)) }))}
                   placeholder={cur.decimals ? '0.00' : '0'}
                   accessibilityLabel={`Item ${idx + 1} price for the whole line`}
+                  testID={`item-price-${idx}`}
                   hint="Line total"
                   error={errors[`amt-${it.key}`]}
                 />

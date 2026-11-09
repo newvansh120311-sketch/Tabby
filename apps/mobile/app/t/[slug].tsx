@@ -59,7 +59,13 @@ export default function TripScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: t.name }} />
+      <Stack.Screen
+        options={{
+          title: t.name,
+          // Opened from a link there's nothing to go back to, so offer a way home instead.
+          headerLeft: router.canGoBack() ? undefined : () => <Button variant="ghost" title="Home" onPress={() => router.replace('/')} />,
+        }}
+      />
       <Screen
         onRefresh={() => trip.refetch()}
         refreshing={trip.isRefetching}

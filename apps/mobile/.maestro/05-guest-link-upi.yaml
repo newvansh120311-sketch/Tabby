@@ -1,0 +1,23 @@
+appId: app.tabby.split
+name: Open a bill link as a guest, claim, try UPI
+# Before running: node scripts/make-guest-bill.mjs (creates "Maestro guest test" and opens its link)
+---
+- extendedWaitUntil:
+    visible: "Maestro guest test"
+    timeout: 20000
+- tapOn:
+    id: "join-name"
+- eraseText: 30
+- inputText: "Guest Maestro"
+- hideKeyboard
+- tapOn: "Start claiming"
+- extendedWaitUntil:
+    visible: "Tap everything you had.*"
+    timeout: 15000
+- tapOn: "Filter coffee, .*"
+- scrollUntilVisible:
+    element: "Pay .* via UPI"
+    direction: DOWN
+- tapOn: "Pay .* via UPI"
+- assertVisible: "No UPI app found"
+- tapOn: "OK"
