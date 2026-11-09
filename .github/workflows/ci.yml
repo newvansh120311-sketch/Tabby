@@ -23,7 +23,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --no-frozen-lockfile
       - name: Core tests (split engine, fee rules, debts, UPI, parsers)
-        run: pnpm --filter @tabby/core test -- --ci
+        run: pnpm --filter @tabby/core exec jest --ci
       - name: Typecheck core and web
         run: |
           pnpm --filter @tabby/core typecheck
