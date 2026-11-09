@@ -24,3 +24,23 @@
 - Deployed to Vercel: https://tabby-split-amber.vercel.app. Seeded production with the Goa trip (4 settle-up payments, 1 confirmed, 1 marked) and the five standalone demo bills.
 - Fixes found in testing: claim-to-host latency was 9 s because functions ran in iad1 against a Singapore database; pinned functions to sin1, now about 0.5 s. Hydration error from locale-dependent dates; pinned to en-IN/Asia/Kolkata.
 - Open: Google web client still needs the redirect URI https://tabby-split-amber.vercel.app/api/auth/callback/google added by the owner (only needed for web sign-in; the app uses native sign-in).
+
+## 2026-11-09 Phase 4: Android app, scanning and bills
+- Expo SDK 58 (RN 0.88, new architecture), Expo Router, NativeWind 4 with components written in the React Native Reusables style (Button, Card, Input, Badge, Chip), TanStack Query persisted to MMKV.
+- OCR: a local Expo module in Kotlin (`modules/tabby-native`) wrapping bundled ML Kit text recognition. Pivot from `@react-native-ml-kit/text-recognition`, which predates the new architecture that RN 0.88 requires. The module returns lines with boxes; `linesToText` in core rebuilds receipt rows and corrects photo tilt (searches -10° to +10°), covered by Jest.
+- Screens: home, new bill (scan, photo, paste, type in), camera scan, paste import, review (currency picker, items, charges with per-type fee rules, tip as % or amount, split mode, mismatch warning), bill (claiming, host summary, share sheet / copy / QR, live polling, edit, delete, add people).
+- Sample images (invented): clean, skewed and faded receipts plus Swiggy, Zomato and Instamart order screens in `apps/mobile/assets/samples`.
+
+## 2026-11-09 Phase 5: Auth, settings and UPI
+- Native Google sign-in (`@react-native-google-signin/google-signin`) exchanging the ID token at `/api/mobile/google` for an app session token; device-token mode works without it and the button reads "Sign-in not configured" when no client ID is baked in.
+- Settings: display name, default currency (searchable ISO 4217 list, pinned favourites), UPI ID validated. Defaults flow into new bills and trip seats.
+- UPI: `upi://pay` via Linking with a no-UPI-app check through the native module and package-visibility `<queries>`. Paid flow Unpaid → Marked paid → Confirmed with role checks on the server.
+
+## 2026-11-09 Phase 6: Trip mode
+- Create trip with base currency and named seats, invite by link or QR, join by taking a seat (App Links on /t/). Add bills with payer picker, split mode and auto-fetched FX rate (editable, saved per bill). Settle-up, balances and timeline tabs; each payment has its own UPI button; owner marks the trip settled once nothing is owed.
+
+## 2026-11-09 Phase 7: Delivery and booking app import
+- Share target for text/* and image/* via expo-share-intent; share-received screen shows progress and offers open trips. Platform detection uses the sender package (activity referrer, best effort) and keywords, with Instamart text winning over the shared Swiggy package.
+- Parsers for Swiggy, Zomato, Instamart, Zepto, Blinkit, District, EazyDiner plus receipt and email fallbacks, 26 invented fixtures (3+ per platform). Paste or share email text. "Order together" shortcuts only list apps that are installed. Source badges are plain text; no platform logos anywhere.
+- CI workflow (Jest, typechecks, Playwright against production), tag-triggered release workflow (EAS build with Gradle fallback, GitHub Release), OTA workflow.
+- Pivot: first EAS build failed before dependency install. pnpm 12's lockfile format isn't readable there, so the repo moved to pnpm 10.34 (settings in pnpm-workspace.yaml, hoisted node_modules, one React version across web and mobile).

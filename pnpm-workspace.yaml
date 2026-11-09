@@ -1,10 +1,11 @@
 packages:
   - apps/*
   - packages/*
-allowBuilds:
-  '@prisma/client': false
-  '@prisma/engines': true
-  '@swc/core': true
-  esbuild: false
-  prisma: true
 nodeLinker: hoisted
+onlyBuiltDependencies:
+  - '@prisma/engines'
+  - '@swc/core'
+  - prisma
+ignoredBuiltDependencies:
+  - '@prisma/client'
+  - esbuild
