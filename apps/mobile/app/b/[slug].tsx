@@ -67,6 +67,7 @@ export default function BillScreen() {
       feeRules: b!.feeRules ?? {},
       splitMode: b!.splitMode,
       tip: tip ? { mode: 'fixed', amount: majorString(tip.amountMinor, dec) } : { mode: 'none' },
+      tax: { mode: 'none' },
       detectedTotalMinor: b!.detectedTotalMinor ?? undefined,
       warnings: [],
       tripSlug: b!.trip?.slug,

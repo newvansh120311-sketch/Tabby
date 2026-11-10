@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import type { BillDraft, BillSource, ChargeType, FeeRules } from '@tabby/core';
+import { getJSON, setJSON } from './storage';
 
 // The bill being reviewed before it's saved. Kept outside React so the scan, share and
 // import screens can hand a draft to the review screen without route params.
@@ -14,6 +15,11 @@ export interface EditableDraft {
   feeRules: FeeRules;
   splitMode: 'items' | 'even';
   tip: { mode: 'none' } | { mode: 'percent'; percent: number } | { mode: 'fixed'; amount: string };
+  /**
+   * Tax worked out from a rate, so a typed-in bill doesn't need a hand-calculated tax line.
+   * 'included' means menu prices already include it. Scanned bills keep tax in `charges`.
+   */
+  tax: TaxSetting;
   detectedTotalMinor?: number;
   warnings: string[];
   tripSlug?: string;
@@ -22,6 +28,23 @@ export interface EditableDraft {
   /** When editing an existing bill. */
   editingSlug?: string;
 }
+
+export type TaxSetting =
+  | { mode: 'none' }
+  | { mode: 'included' }
+  | { mode: 'percent'; percent: string; splitGst: boolean }
+  | { mode: 'fixed'; amount: string };
+
+/** The rate used last time, so the next typed-in bill starts there. */
+export const lastTax = {
+  get(currency: string): TaxSetting {
+    // First time: 5% GST is the common case in India; elsewhere start with none.
+    return getJSON<TaxSetting>('lastTax', currency === 'INR' ? { mode: 'percent', percent: '5', splitGst: false } : { mode: 'none' });
+  },
+  set(t: TaxSetting) {
+    if (t.mode === 'percent' || t.mode === 'included' || t.mode === 'none') setJSON('lastTax', t);
+  },
+};
 
 let current: EditableDraft | null = null;
 const listeners = new Set<() => void>();
@@ -72,6 +95,7 @@ export function fromParsed(d: BillDraft, decimals: number, extra: Partial<Editab
     feeRules: {},
     splitMode: 'items',
     tip: tip ? { mode: 'fixed', amount: majorString(tip.amountMinor, decimals) } : { mode: 'none' },
+    tax: { mode: 'none' },
     detectedTotalMinor: d.detectedTotalMinor,
     warnings: d.warnings,
     ...extra,
@@ -88,6 +112,7 @@ export function emptyDraft(currency: string, extra: Partial<EditableDraft> = {})
     feeRules: {},
     splitMode: 'items',
     tip: { mode: 'none' },
+    tax: lastTax.get(currency),
     warnings: [],
     ...extra,
   };

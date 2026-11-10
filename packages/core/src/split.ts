@@ -143,6 +143,32 @@ export function checkTotals(
   return { computedMinor, differenceMinor, matches: Math.abs(differenceMinor) <= 1 };
 }
 
+const pct = (n: number) => `${Number(n.toFixed(3))}%`;
+
+/**
+ * Tax as receipt lines from a rate on the item subtotal. In rupees, GST can be shown as CGST and
+ * SGST halves like an Indian restaurant bill; each half is rounded on its own, as printed bills do.
+ */
+export function taxLines(
+  itemsTotalMinor: number,
+  percent: number,
+  opts: { currency?: string; splitGst?: boolean } = {},
+): { label: string; amountMinor: number }[] {
+  if (!(percent > 0) || itemsTotalMinor <= 0) return [];
+  const of = (p: number) => Math.round((itemsTotalMinor * p) / 100);
+  if (opts.currency === 'INR') {
+    if (opts.splitGst) {
+      const half = percent / 2;
+      return [
+        { label: `CGST ${pct(half)}`, amountMinor: of(half) },
+        { label: `SGST ${pct(half)}`, amountMinor: of(half) },
+      ];
+    }
+    return [{ label: `GST ${pct(percent)}`, amountMinor: of(percent) }];
+  }
+  return [{ label: `Tax ${pct(percent)}`, amountMinor: of(percent) }];
+}
+
 /** Build a charge amount from a tip setting. Percent tips apply to the item subtotal. */
 export function tipAmount(
   itemsTotalMinor: number,

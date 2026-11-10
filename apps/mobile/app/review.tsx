@@ -11,6 +11,7 @@ import {
   NEGATIVE_CHARGE_TYPES,
   parseMoney,
   SOURCE_LABELS,
+  taxLines,
   tipAmount,
   type BillWrite,
   type ChargeType,
@@ -18,13 +19,15 @@ import {
 } from '@tabby/core';
 import { Screen } from '@/components/Screen';
 import { Badge, Button, Card, Chip, Input, Row, Text } from '@/components/ui';
-import { draftStore, key, useDraft, type EditableDraft } from '@/lib/draft';
+import { draftStore, key, lastTax, useDraft, type EditableDraft } from '@/lib/draft';
 import { api } from '@/lib/api';
 import { currencyPick } from '@/lib/pick';
 import { createBill, updateBill, useMe, useTrip } from '@/lib/queries';
 
 const RULE_LABEL: Record<FeeRule, string> = { even: 'Evenly', proportional: 'By what they ordered', claims: 'Only people who claimed' };
 const TIP_PRESETS = [5, 10, 15, 18, 20];
+// Common GST slabs on Indian food bills; other currencies get the custom rate.
+const TAX_PRESETS = ['5', '12', '18'];
 
 export default function Review() {
   const router = useRouter();
@@ -68,9 +71,16 @@ export default function Review() {
         : d.tip.mode === 'percent'
           ? tipAmount(itemsTotal, { mode: 'percent', percent: d.tip.percent })
           : (parseMoney(d.tip.amount, d.currency) ?? 0);
-    const allCharges = [...charges.map((c) => ({ amountMinor: c.minor ?? 0 })), { amountMinor: tip }];
+    const tax =
+      d.tax.mode === 'percent'
+        ? taxLines(itemsTotal, Number(d.tax.percent), { currency: d.currency, splitGst: d.tax.splitGst })
+        : d.tax.mode === 'fixed' && (parseMoney(d.tax.amount, d.currency) ?? 0) > 0
+          ? [{ label: d.currency === 'INR' ? 'GST' : 'Tax', amountMinor: parseMoney(d.tax.amount, d.currency)! }]
+          : [];
+    const taxTotal = tax.reduce((a, t) => a + t.amountMinor, 0);
+    const allCharges = [...charges.map((c) => ({ amountMinor: c.minor ?? 0 })), { amountMinor: tip }, { amountMinor: taxTotal }];
     const check = checkTotals(items.map((i) => ({ amountMinor: i.minor ?? 0 })), allCharges, d.detectedTotalMinor);
-    return { items, charges, tip, itemsTotal, check };
+    return { items, charges, tip, tax, taxTotal, itemsTotal, check };
   }, [d]);
 
   if (!d || !computed) {
@@ -82,7 +92,14 @@ export default function Review() {
     );
   }
 
-  const chargeTypesPresent = [...new Set([...d.charges.map((c) => c.type), ...(computed.tip ? (['tip'] as ChargeType[]) : [])])];
+  const chargeTypesPresent = [
+    ...new Set([
+      ...d.charges.map((c) => c.type),
+      ...(computed.tip ? (['tip'] as ChargeType[]) : []),
+      ...(computed.taxTotal ? (['tax'] as ChargeType[]) : []),
+    ]),
+  ];
+  const taxPercent = d.tax.mode === 'percent' ? Number(d.tax.percent) : null;
   const money = (m: number) => formatMoney(m, d.currency);
 
   async function save() {
@@ -97,6 +114,7 @@ export default function Review() {
       if (c.minor == null) errs[`amt-${c.key}`] = 'Enter an amount';
     });
     if (computed.items.length === 0) errs.items = 'Add at least one item.';
+    if (d.tax.mode === 'percent' && !(Number(d.tax.percent) > 0 && Number(d.tax.percent) < 100)) errs.tax = 'Enter a tax rate, like 5.';
     const fx = needsFx ? Number(d.fxRate) : 1;
     if (needsFx && !(fx > 0)) errs.fx = 'Enter the exchange rate.';
     if (tripView && !d.payerMemberId) errs.payer = 'Pick who paid.';
@@ -118,6 +136,7 @@ export default function Review() {
       items: computed.items.map((i) => ({ id: i.id, name: i.name.trim(), amountMinor: i.minor!, qty: i.qty || 1 })),
       charges: [
         ...computed.charges.map((c) => ({ type: c.type, label: c.label.trim() || CHARGE_LABELS[c.type], amountMinor: c.minor! })),
+        ...computed.tax.map((t) => ({ type: 'tax' as const, label: t.label, amountMinor: t.amountMinor })),
         ...(computed.tip
           ? [{ type: 'tip' as const, label: d.tip.mode === 'percent' ? `Tip ${d.tip.percent}%` : 'Tip', amountMinor: computed.tip }]
           : []),
@@ -126,6 +145,7 @@ export default function Review() {
       hostUpiId: me.data?.me.upiId ?? '',
       participants: [],
     };
+    lastTax.set(d.tax);
     setSaving(true);
     try {
       if (d.editingSlug) {
@@ -293,8 +313,67 @@ export default function Review() {
       </Card>
 
       <Card className="gap-3">
-        <Text variant="h2">Fees, tax and discounts</Text>
-        {d.charges.length === 0 ? <Text variant="muted">Nothing here yet. Add tax, a delivery fee or a coupon if the bill had one.</Text> : null}
+        <Text variant="h2">Tax</Text>
+        <Row className="flex-wrap gap-2">
+          <Chip label="No tax" selected={d.tax.mode === 'none'} onPress={() => set((x) => ({ ...x, tax: { mode: 'none' } }))} />
+          <Chip label="Included in prices" selected={d.tax.mode === 'included'} onPress={() => set((x) => ({ ...x, tax: { mode: 'included' } }))} />
+          {(d.currency === 'INR' ? TAX_PRESETS : []).map((p) => (
+            <Chip
+              key={p}
+              label={`${p}%`}
+              selected={d.tax.mode === 'percent' && d.tax.percent === p}
+              onPress={() => set((x) => ({ ...x, tax: { mode: 'percent', percent: p, splitGst: x.tax.mode === 'percent' ? x.tax.splitGst : false } }))}
+            />
+          ))}
+          <Chip
+            label="Other rate"
+            selected={d.tax.mode === 'percent' && !(d.currency === 'INR' && TAX_PRESETS.includes(d.tax.percent))}
+            onPress={() => set((x) => ({ ...x, tax: { mode: 'percent', percent: '', splitGst: false } }))}
+          />
+          <Chip label="Amount" selected={d.tax.mode === 'fixed'} onPress={() => set((x) => ({ ...x, tax: { mode: 'fixed', amount: x.tax.mode === 'fixed' ? x.tax.amount : '' } }))} />
+        </Row>
+        {d.tax.mode === 'percent' && !(d.currency === 'INR' && TAX_PRESETS.includes(d.tax.percent)) ? (
+          <Input
+            testID="tax-rate"
+            value={d.tax.percent}
+            keyboardType="decimal-pad"
+            onChangeText={(t) => set((x) => (x.tax.mode === 'percent' ? { ...x, tax: { ...x.tax, percent: t.replace(/[^\d.]/g, '') } } : x))}
+            placeholder="8.875"
+            accessibilityLabel="Tax rate in percent"
+            hint="Rate in %"
+            error={errors.tax}
+          />
+        ) : null}
+        {d.tax.mode === 'fixed' ? (
+          <Input
+            value={d.tax.amount}
+            keyboardType="decimal-pad"
+            onChangeText={(t) => set((x) => ({ ...x, tax: { mode: 'fixed', amount: t } }))}
+            placeholder={cur.decimals ? '0.00' : '0'}
+            accessibilityLabel="Tax amount"
+          />
+        ) : null}
+        {d.tax.mode === 'percent' && d.currency === 'INR' && taxPercent ? (
+          <Chip
+            label={`Show as CGST ${taxPercent / 2}% + SGST ${taxPercent / 2}%`}
+            selected={d.tax.splitGst}
+            onPress={() => set((x) => (x.tax.mode === 'percent' ? { ...x, tax: { ...x.tax, splitGst: !x.tax.splitGst } } : x))}
+          />
+        ) : null}
+        <Text variant="muted">
+          {d.tax.mode === 'included'
+            ? 'No tax line is added, since the prices already include it.'
+            : d.tax.mode === 'none'
+              ? 'No tax on this bill.'
+              : computed.taxTotal
+                ? `${computed.tax.map((t) => `${t.label} ${money(t.amountMinor)}`).join(' + ')}${d.tax.mode === 'percent' ? ` on ${money(computed.itemsTotal)} of items` : ''}. It updates as you change items, and each person pays tax on what they ordered.`
+                : 'Add items and the tax works itself out.'}
+        </Text>
+      </Card>
+
+      <Card className="gap-3">
+        <Text variant="h2">Other fees and discounts</Text>
+        {d.charges.length === 0 ? <Text variant="muted">Add a delivery fee, service charge or coupon if the bill had one.</Text> : null}
         {d.charges.map((c) => (
           <View key={c.key} className="gap-2 border-b border-line pb-3 dark:border-line-dark">
             <Row className="flex-wrap gap-2">
@@ -330,7 +409,7 @@ export default function Review() {
             <Button variant="ghost" title="Remove" onPress={() => set((x) => ({ ...x, charges: x.charges.filter((y) => y.key !== c.key) }))} />
           </View>
         ))}
-        <Button variant="secondary" title="Add a fee or discount" onPress={() => set((x) => ({ ...x, charges: [...x.charges, { key: key(), type: 'tax', label: '', amount: '' }] }))} />
+        <Button variant="secondary" title="Add a fee or discount" onPress={() => set((x) => ({ ...x, charges: [...x.charges, { key: key(), type: 'other', label: '', amount: '' }] }))} />
       </Card>
 
       <Card className="gap-3">

@@ -9,6 +9,7 @@ import {
   parseMoney,
   searchCurrencies,
   simplifyDebts,
+  taxLines,
   tipAmount,
   tripOwedFromBill,
   BillInput,
@@ -181,6 +182,17 @@ describe('computeSplit', () => {
   it('puts everything unclaimed when nobody joined', () => {
     const r = computeSplit(base({ participants: [], claims: [] }));
     expect(r.unclaimedMinor).toBe(60000);
+  });
+
+  it('builds tax lines from a rate', () => {
+    expect(taxLines(124000, 5, { currency: 'INR' })).toEqual([{ label: 'GST 5%', amountMinor: 6200 }]);
+    expect(taxLines(33500, 5, { currency: 'INR', splitGst: true })).toEqual([
+      { label: 'CGST 2.5%', amountMinor: 838 },
+      { label: 'SGST 2.5%', amountMinor: 838 },
+    ]);
+    expect(taxLines(9900, 8.875, { currency: 'USD' })).toEqual([{ label: 'Tax 8.875%', amountMinor: 879 }]);
+    expect(taxLines(0, 5, { currency: 'INR' })).toEqual([]);
+    expect(taxLines(1000, 0)).toEqual([]);
   });
 
   it('computes tips', () => {
